@@ -45,3 +45,5 @@ __pycache__
 keys.py
 
 @firebase
+.next
+node_modules

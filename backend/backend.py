@@ -1,8 +1,9 @@
 from pymongo import MongoClient
 from flask import Flask, request
 from flask_cors import CORS
+import keys
 
-uri = # MongoDB uri goes here
+uri = keys.mongo_uri
 client = MongoClient(uri)
 
 app = Flask(__name__)
@@ -13,7 +14,7 @@ def retrieve_passwords():
     try:
         #To be changed to reflect individual user accounts
         database = client.get_database(# Database name goes here)
-        passwords = database.get_collection(  # User cluster goes here)
+        passwords=database.get_collection(  # Cluster name goes here)
         results = passwords.find()
 
         json = []
@@ -34,8 +35,8 @@ def retrieve_passwords():
 def insert_password():
     try:
         # Connect
-        database = client.get_database(# Database goes here)
-        passwords = database.get_collection(# User cluster goes here)
+        database = client.get_database(# Database name goes here)
+        passwords = database.get_collection(#Cluster name goes here)
 
         # Get the data from the POST request
         website = request.json["website"]
@@ -53,8 +54,8 @@ def insert_password():
 @app.route("/delete", methods=["GET", "POST"])
 def delete_password():
     try:
-        database=client.get_database(  # Database goes here)
-        passwords=database.get_collection(  # User cluster goes here)
+        database=client.get_database("passwordman")
+        passwords=database.get_collection("posts")
 
         # Will be switched to unique id when it's implemented
         website = request.json["website"]
@@ -62,6 +63,7 @@ def delete_password():
 
     except Exception as e:
         print(f"Failed because of {e}")
+
 
 
         

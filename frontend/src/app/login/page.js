@@ -2,12 +2,12 @@
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react';
 import { initializeApp } from "firebase/app";
-import { setPersistence, getAuth, createUserWithEmailAndPassword, browserSessionPersistence } from "firebase/auth";
+import { setPersistence, getAuth, createUserWithEmailAndPassword, browserSessionPersistence, signInWithEmailAndPassword } from "firebase/auth";
 
 const firebaseConfig = // Firebase config goes here
 
-
 export default function Home() {
+
     const router = useRouter();
 
     const app = initializeApp(firebaseConfig);
@@ -24,43 +24,28 @@ export default function Home() {
         setInputs(values => ({ ...values, [name]: value }));
     }
 
-    // Create account when form is submitted
-    const handleAccountCreation = (e) => {
+    const handleLogin = (e) => {
         e.preventDefault();
 
-        // Create the user with the given email and password
-        createUserWithEmailAndPassword(auth, inputs.email, inputs.password)
+        signInWithEmailAndPassword(auth, inputs.email, inputs.password)
             .then((userCredential) => {
                 const user = userCredential.user;
-                // Get the JWT token to send to backend
                 auth.currentUser.getIdToken(true)
                     .then(function (idToken) {
-                        // Send token to backend
-                        fetch("http://localhost:5000/create", {
-                            'method': 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ "id_token": idToken })
-                        })
-                        // Move to the user's page
                         router.push(`/manager/${idToken}`);
                     })
-                    .catch(function (error) {
-                        alert("Failed to send to backend");
-                    });
             })
             .catch((error) => {
                 const errorCode = error.code;
-                const errorMessage = error.message
+                const errorMessage = error.message;
                 alert(errorMessage);
             });
     }
 
     return (
         <>
-            <span>Create New Account</span>
-            <form onSubmit={handleAccountCreation}>
+            <span>Login</span>
+            <form onSubmit={handleLogin}>
                 <input type="text" placeholder="username" name="email" onChange={handleChange} />
                 <input type="text" placeholder="password" name="password" onChange={handleChange} />
                 <button type="submit">Sign Up</button>

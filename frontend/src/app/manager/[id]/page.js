@@ -1,7 +1,9 @@
 'use client'
-import Image from "next/image";
-import styles from "./page.module.css";
 import { useState, useEffect } from 'react';
+import { initializeApp } from "firebase/app";
+import { setPersistence, getAuth, createUserWithEmailAndPassword, browserSessionPersistence, signInWithEmailAndPassword } from "firebase/auth";
+
+const firebaseConfig = // Firebase config goes here
 
 function PasswordDisplay({ website, username, password, onDelete }) {
   const [isVisible, setVisible] = useState(false);
@@ -36,11 +38,18 @@ export default function Home() {
   const [entries, setEntries] = useState([]);
   const [inputs, setInputs] = useState({});
 
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth();
+
   // Fetch passwords from backend API
   useEffect(() => {
-    fetch('http://localhost:5000/').then(res => res.json()).then(data => {
-      setEntries(data);
-    });
+    auth.currentUser.getIdToken(true).then(function (idToken) {
+      fetch('http://localhost:5000/', { method: "GET", headers: { "Authorization": `${idToken}` } })
+        .then(res => res.json())
+        .then(data => {
+          setEntries(data);
+      });
+    })
   }, []);
 
   // Handle change in inputs for adding new passwords
@@ -52,36 +61,43 @@ export default function Home() {
 
   // Handle entering the password form
   const handleEntry = (e) => {
+    console.log(entries);
     e.preventDefault();
     setModalVisible(false);
     setEntries(entries.concat({"website": inputs.website, "username": inputs.username, "password": inputs.password}));
 
     // Add new password to database
-    return fetch("http://localhost:5000/add", {
-      'method': 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      //TODO: Give each password a unique ID in the database
-      body: JSON.stringify(inputs)
-    })
+    return auth.currentUser.getIdToken(true).then(function (idToken) {
+      fetch("http://localhost:5000/add", {
+        'method': 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `${idToken}`
+        },
+        //TODO: Give each password a unique ID in the database
+        body: JSON.stringify(inputs)
+      })
       .then(response => response.json)
       .then(result => console.log(result));
+    })
 
   }
 
-  function handleDelete(website) {
+  function handleDelete(website, username, password) {
     setEntries(entries => entries.filter(entry => entry.website !== website));
 
-    return fetch("http://localhost:5000/delete", {
-      'method': 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ "website": website })
-    })
+    return auth.currentUser.getIdToken(true).then(function (idToken) {
+      fetch("http://localhost:5000/delete", {
+        'method': 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `${idToken}`
+        },
+        body: JSON.stringify({ "website": website, "username": username, 'password': password })
+      })
       .then(response => response.json)
       .then(result => console.log(result));
+    });
   }
 
   return (
@@ -110,15 +126,16 @@ export default function Home() {
       </form>
     </div>
     }
-    <div className="displays">
+      {/*entries.length > 0 &&*/ <div className="displays">
         {entries.map(entry =>
           <PasswordDisplay
             website={entry.website}
             username={entry.username}
             password={entry.password}
-            onDelete={() => handleDelete(entry.website)} />
-      )}
-    </div>
+            onDelete={() => handleDelete(entry.website, entry.username, entry.password)} />
+        )}
+      </div>
+      }
   </>
   );
 }

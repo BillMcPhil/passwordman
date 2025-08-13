@@ -1,7 +1,9 @@
 'use client'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import { useRouter } from 'next/navigation';
 import { initializeApp } from "firebase/app";
 import { setPersistence, getAuth, createUserWithEmailAndPassword, browserSessionPersistence, signInWithEmailAndPassword } from "firebase/auth";
+import context from '../../KeyContext/context.js';
 
 const firebaseConfig = // Firebase config goes here
 
@@ -40,15 +42,43 @@ export default function Home() {
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth();
+  setPersistence(auth, browserSessionPersistence);
+
+  const router = useRouter();
+
+  const { key, setKey } = useContext(context);
+
+  const encoder = new TextEncoder();
 
   // Fetch passwords from backend API
   useEffect(() => {
     auth.currentUser.getIdToken(true).then(function (idToken) {
       fetch('http://localhost:5000/', { method: "GET", headers: { "Authorization": `${idToken}` } })
         .then(res => res.json())
-        .then(data => {
-          setEntries(data);
-      });
+        .then(result => {
+          // Will initially give us a list of decryption promises
+          const decryptionPromise = result.map((encryptedEntry) => {
+            // Reconstruct the cipher buffer
+            const cipherBytes = Object.values(encryptedEntry.cipher);
+            const cipherUint8 = new Uint8Array(cipherBytes);
+            const cipher = cipherUint8.buffer;
+            
+            // Reconstruct the nonce buffer
+            const nonceBytes = Object.values(encryptedEntry.nonce);
+            const nonceUint8 = new Uint8Array(nonceBytes);
+            const nonce = nonceUint8.buffer;
+
+            // Decrypt the password
+            return window.crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce }, key, cipher).then(decryptedEntry => {
+              const password = new TextDecoder().decode(decryptedEntry);
+              return { "website": encryptedEntry.website, "username": encryptedEntry.username, "password": password };
+            }).catch((error) => { alert(`Vault decryption failed because of ${error}, routing to login`); router.push("/login"); })
+          })
+          // Wait for promises to complete
+          Promise.all(decryptionPromise).then(decryptedPasswords => {
+            setEntries(decryptedPasswords);
+          }).catch(error => { alert(error); router.push("/login"); });
+        }).catch((error) => { alert(error); router.push("/login"); });
     })
   }, []);
 
@@ -64,28 +94,37 @@ export default function Home() {
     console.log(entries);
     e.preventDefault();
     setModalVisible(false);
-    setEntries(entries.concat({"website": inputs.website, "username": inputs.username, "password": inputs.password}));
-
-    // Add new password to database
-    return auth.currentUser.getIdToken(true).then(function (idToken) {
-      fetch("http://localhost:5000/add", {
-        'method': 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `${idToken}`
-        },
-        //TODO: Give each password a unique ID in the database
-        body: JSON.stringify(inputs)
+    setEntries(entries.concat({ "website": inputs.website, "username": inputs.username, "password": inputs.password }));
+    
+    // Encrypt password input
+    const enc = encoder.encode(inputs.password);
+    const nonce = window.crypto.getRandomValues(new Uint8Array(12));
+    window.crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, key, enc).then((cipher) => {
+      const ciphertext = new Uint8Array(cipher);
+      // Add new password to database
+      auth.currentUser.getIdToken(true).then(function (idToken) {
+        fetch("http://localhost:5000/add", {
+          'method': 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `${idToken}`
+          },
+          //TODO: Give each password a unique ID in the database
+          body: JSON.stringify({ "website": inputs.website, "username": inputs.username, "nonce": nonce, "cipher": ciphertext })
+        })
+        .then(response => response.json)
+        .then(result => console.log(result));
       })
-      .then(response => response.json)
-      .then(result => console.log(result));
     })
 
   }
 
+  // Handle the user deleting passwords
   function handleDelete(website, username, password) {
+    // Remove password from entries list
     setEntries(entries => entries.filter(entry => entry.website !== website));
 
+    // Query the backend to remove the password from the database
     return auth.currentUser.getIdToken(true).then(function (idToken) {
       fetch("http://localhost:5000/delete", {
         'method': 'POST',
@@ -93,7 +132,7 @@ export default function Home() {
           'Content-Type': 'application/json',
           'Authorization': `${idToken}`
         },
-        body: JSON.stringify({ "website": website, "username": username, 'password': password })
+        body: JSON.stringify({ "website": website })
       })
       .then(response => response.json)
       .then(result => console.log(result));
@@ -126,7 +165,7 @@ export default function Home() {
       </form>
     </div>
     }
-      {/*entries.length > 0 &&*/ <div className="displays">
+      <div className="displays">
         {entries.map(entry =>
           <PasswordDisplay
             website={entry.website}
@@ -135,7 +174,6 @@ export default function Home() {
             onDelete={() => handleDelete(entry.website, entry.username, entry.password)} />
         )}
       </div>
-      }
   </>
   );
 }

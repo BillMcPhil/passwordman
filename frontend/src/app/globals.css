@@ -90,7 +90,7 @@ a {
   display:block;
   margin-top:18px;
   padding-bottom:15px;
-  left:-200px;
+  left:-450px;
 }
 
 .password {
@@ -103,7 +103,7 @@ a {
   top: 15px;
   display: inline;
   position:absolute;
-  left:-50px;
+  left:-45px;
 }
 
 .copybutton {
@@ -116,7 +116,14 @@ a {
   top: 15px;
   display:inline;
   position: absolute;
-  left: 50px;
+  left: 70px;
+}
+
+.editbutton {
+  top: 15px;
+  display: inline;
+  position: absolute;
+  left: 40px;
 }
 
 .add {
@@ -142,4 +149,9 @@ a {
 .new-entry-box {
   display:block;
   margin-top: 8px;
+}
+
+.edit-box {
+  display: inline;
+  margin-right: 90px;
 }

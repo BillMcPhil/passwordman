@@ -5,10 +5,10 @@ import { createContext, useContext, useState } from 'react';
 const context = createContext();
 
 export function KeyContext({ children }) {
-    const [key, setKey] = useState(null);
+    const [encryptionKey, setEncryptionKey] = useState(null);
 
     return (
-        <context.Provider value={{ key, setKey }}>
+        <context.Provider value={{ encryptionKey, setEncryptionKey }}>
             {children}
         </context.Provider>
     );

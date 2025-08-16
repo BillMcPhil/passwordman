@@ -2,35 +2,105 @@
 import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { initializeApp } from "firebase/app";
-import { setPersistence, getAuth, createUserWithEmailAndPassword, browserSessionPersistence, signInWithEmailAndPassword } from "firebase/auth";
+import { setPersistence, getAuth, browserSessionPersistence } from "firebase/auth";
+import { v4 as uuidv4 } from 'uuid';
 import context from '../../KeyContext/context.js';
 
-const firebaseConfig = // Firebase config goes here
+const firebaseConfig = //firebase config goes here
 
-function PasswordDisplay({ website, username, password, onDelete }) {
+function PasswordDisplay({ id, website, username, password, onDelete, onUpdate }) {
   const [isVisible, setVisible] = useState(false);
-  function reveal() {
-    setVisible(!isVisible)
-  }
+  const [isEditing, setEditing] = useState(false);
+  const [editInputs, setEditInputs] = useState({});
+  const { encryptionKey, setEncryptionKey } = useContext(context);
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth();
 
   function copy() {
     navigator.clipboard.writeText(password);
   }
 
+  const handleEditChange = (e) => {
+    const name = e.target.name;
+    const value = e.target.value;
+    setEditInputs(values => ({ ...values, [name]: value }));
+  }
+
+  const handleEdit = (e) => {
+    e.preventDefault();
+    setEditing(false);
+
+    const enc = new TextEncoder().encode(editInputs.password);
+    const nonce = window.crypto.getRandomValues(new Uint8Array(12));
+    alert(editInputs.password != password);
+    if (editInputs.password != password) {
+      window.crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, encryptionKey, enc).then((cipher) => {
+        const ciphertext = new Uint8Array(cipher);
+        auth.currentUser.getIdToken(true).then((idToken) => {
+          fetch("http://localhost:5000/edit", {
+            'method': 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `${idToken}`
+            },
+            body: JSON.stringify({
+              "id": id,
+              "website": editInputs.website,
+              "username": editInputs.username,
+              "nonce": nonce,
+              "cipher": ciphertext
+            })
+          })
+            .then(response => response.json)
+            .then(result => console.log(result));
+        }).catch((error) => alert(error))
+      }).catch((error) => alert(error))
+    }
+
+    onUpdate({ "id": id, "website": editInputs.website, "username": editInputs.username, "password": editInputs.password });
+  }
+
   return (
     <>
-    <div className="display">
-      <p className="website"><b>{website}</b></p>
-      <p className="username"><b>{username}</b></p>
-    </div>
-    <div className="password-display">
-      <p className="password"><b>{isVisible ? password : "***"}</b></p>
-      <div className="password-buttons">
-        <button className="revealbutton" onClick={reveal}>{isVisible ? "hide" : "reveal"}</button>
-          <button className="copybutton" onClick={copy}>Copy</button>
-          <button className="deletebutton" onClick={onDelete}>Delete</button>
-      </div>
-    </div>
+      {!isEditing &&
+        <div className="display">
+          <p className="website"><b>{website}</b></p>
+          <p className="username"><b>{username}</b></p>
+        </div>
+      }
+      {!isEditing &&
+        <div className="password-display">
+          <p className="password"><b>{isVisible ? password : "***"}</b></p>
+          <div className="password-buttons">
+            <button className="revealbutton" onClick={() => setVisible(!isVisible)}>{isVisible ? "hide" : "reveal"}</button>
+            <button className="copybutton" onClick={copy}>Copy</button>
+            <button className="editbutton" onClick={() => {
+              setEditing(true);
+              setEditInputs({
+                "website": website,
+                "username": username,
+                "password": password
+              })
+            }}>Edit</button>
+            <button className="deletebutton" onClick={onDelete}>Delete</button>
+          </div>
+        </div>
+      }
+      {isEditing &&
+        <div className="edit-display">
+          <form onSubmit={handleEdit}>
+            <input className="edit-box" type="text" placeholder="Website" name="website" value={ editInputs.website } onChange={handleEditChange} />
+            <input className="edit-box" type="text" placeholder="Username" name="username" value={editInputs.username} onChange={handleEditChange} />
+            <input className="edit-box" type="text" placeholder="Password" name="password" value={editInputs.password} onChange={handleEditChange} />
+            <div className="edit-form-buttons">
+              <button type="submit" className="password-save">Save</button>
+              <button onClick={() => setEditing(false)}>Cancel</button>
+            </div>
+          </form>
+        </div>
+
+      }
     </>
   );
 }
@@ -46,40 +116,50 @@ export default function Home() {
 
   const router = useRouter();
 
-  const { key, setKey } = useContext(context);
+  const { encryptionKey, setEncryptionKey } = useContext(context);
 
   const encoder = new TextEncoder();
 
   // Fetch passwords from backend API
   useEffect(() => {
-    auth.currentUser.getIdToken(true).then(function (idToken) {
-      fetch('http://localhost:5000/', { method: "GET", headers: { "Authorization": `${idToken}` } })
-        .then(res => res.json())
-        .then(result => {
-          // Will initially give us a list of decryption promises
-          const decryptionPromise = result.map((encryptedEntry) => {
-            // Reconstruct the cipher buffer
-            const cipherBytes = Object.values(encryptedEntry.cipher);
-            const cipherUint8 = new Uint8Array(cipherBytes);
-            const cipher = cipherUint8.buffer;
-            
-            // Reconstruct the nonce buffer
-            const nonceBytes = Object.values(encryptedEntry.nonce);
-            const nonceUint8 = new Uint8Array(nonceBytes);
-            const nonce = nonceUint8.buffer;
-
-            // Decrypt the password
-            return window.crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce }, key, cipher).then(decryptedEntry => {
-              const password = new TextDecoder().decode(decryptedEntry);
-              return { "website": encryptedEntry.website, "username": encryptedEntry.username, "password": password };
-            }).catch((error) => { alert(`Vault decryption failed because of ${error}, routing to login`); router.push("/login"); })
-          })
-          // Wait for promises to complete
-          Promise.all(decryptionPromise).then(decryptedPasswords => {
-            setEntries(decryptedPasswords);
-          }).catch(error => { alert(error); router.push("/login"); });
-        }).catch((error) => { alert(error); router.push("/login"); });
-    })
+    try {
+      auth.currentUser.getIdToken(true).then((idToken) => {
+        fetch('http://localhost:5000/', { method: "GET", headers: { "Authorization": `${idToken}` } })
+          .then(res => res.json())
+          .then(result => {
+            // Will initially give us a list of decryption promises
+            const decryptionPromise = result.map((encryptedEntry) => {
+              // Reconstruct the cipher buffer
+              const cipherBytes = Object.values(encryptedEntry.cipher);
+              const cipherUint8 = new Uint8Array(cipherBytes);
+              const cipher = cipherUint8.buffer;
+              
+              // Reconstruct the nonce buffer
+              const nonceBytes = Object.values(encryptedEntry.nonce);
+              const nonceUint8 = new Uint8Array(nonceBytes);
+              const nonce = nonceUint8.buffer;
+  
+              // Decrypt the password
+              return window.crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce }, encryptionKey, cipher).then(decryptedEntry => {
+                const password = new TextDecoder().decode(decryptedEntry);
+                return {
+                  "id": encryptedEntry.id,
+                  "website": encryptedEntry.website,
+                  "username": encryptedEntry.username,
+                  "password": password
+                };
+              }).catch((error) => { alert(`Vault decryption failed because of ${error}, routing to login`); router.push("/login"); })
+            })
+            // Wait for promises to complete
+            Promise.all(decryptionPromise).then(decryptedPasswords => {
+              setEntries(decryptedPasswords);
+            }).catch(error => { alert(error); router.push("/login"); });
+          }).catch((error) => { alert(error); router.push("/login"); });
+      }).catch((error) => { alert(error); router.push("/login"); })
+    }
+    catch {
+      router.push("/login");
+    }
   }, []);
 
   // Handle change in inputs for adding new passwords
@@ -91,26 +171,31 @@ export default function Home() {
 
   // Handle entering the password form
   const handleEntry = (e) => {
-    console.log(entries);
     e.preventDefault();
     setModalVisible(false);
-    setEntries(entries.concat({ "website": inputs.website, "username": inputs.username, "password": inputs.password }));
+    const id = uuidv4();
+    setEntries(entries.concat({ "id": id, "website": inputs.website, "username": inputs.username, "password": inputs.password }));
     
     // Encrypt password input
     const enc = encoder.encode(inputs.password);
     const nonce = window.crypto.getRandomValues(new Uint8Array(12));
-    window.crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, key, enc).then((cipher) => {
+    window.crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, encryptionKey, enc).then((cipher) => {
       const ciphertext = new Uint8Array(cipher);
       // Add new password to database
-      auth.currentUser.getIdToken(true).then(function (idToken) {
+      auth.currentUser.getIdToken(true).then((idToken) => {
         fetch("http://localhost:5000/add", {
           'method': 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `${idToken}`
           },
-          //TODO: Give each password a unique ID in the database
-          body: JSON.stringify({ "website": inputs.website, "username": inputs.username, "nonce": nonce, "cipher": ciphertext })
+          body: JSON.stringify({
+            "id": id,
+            "website": inputs.website,
+            "username": inputs.username,
+            "nonce": nonce,
+            "cipher": ciphertext
+          })
         })
         .then(response => response.json)
         .then(result => console.log(result));
@@ -120,19 +205,19 @@ export default function Home() {
   }
 
   // Handle the user deleting passwords
-  function handleDelete(website, username, password) {
+  function handleDelete(id) {
     // Remove password from entries list
-    setEntries(entries => entries.filter(entry => entry.website !== website));
+    setEntries(entries => entries.filter(entry => entry.id !== id));
 
     // Query the backend to remove the password from the database
-    return auth.currentUser.getIdToken(true).then(function (idToken) {
+    return auth.currentUser.getIdToken(true).then((idToken) => {
       fetch("http://localhost:5000/delete", {
         'method': 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `${idToken}`
         },
-        body: JSON.stringify({ "website": website })
+        body: JSON.stringify({ "id": id })
       })
       .then(response => response.json)
       .then(result => console.log(result));
@@ -168,10 +253,14 @@ export default function Home() {
       <div className="displays">
         {entries.map(entry =>
           <PasswordDisplay
+            id={entry.id}
             website={entry.website}
             username={entry.username}
             password={entry.password}
-            onDelete={() => handleDelete(entry.website, entry.username, entry.password)} />
+            onDelete={() => handleDelete(entry.id)}
+            onUpdate={(updatedEntry) => {
+              setEntries(prevEntries => prevEntries.map(e => e.id === updatedEntry.id ? updatedEntry : e))
+            }} />
         )}
       </div>
   </>

@@ -5,15 +5,7 @@ import { initializeApp } from "firebase/app";
 import { setPersistence, getAuth, createUserWithEmailAndPassword, browserSessionPersistence } from "firebase/auth";
 import context from "../KeyContext/context.js";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyCS8WpQvPwQjU71qFO5vAd8bEhykTSlB8M",
-    authDomain: "passwordman-ef84c.firebaseapp.com",
-    projectId: "passwordman-ef84c",
-    storageBucket: "passwordman-ef84c.firebasestorage.app",
-    messagingSenderId: "692808035180",
-    appId: "1:692808035180:web:7626d0eba10c688559e149",
-    measurementId: "G-BLRY3HKY44"
-};
+const firebaseConfig = //firebase config goes here
 
 
 export default function Home() {
@@ -26,7 +18,7 @@ export default function Home() {
 
     const [inputs, setInputs] = useState({});
 
-    const { key, setKey } = useContext(context);
+    const { encryptionKey, setEncryptionKey } = useContext(context);
 
     const encoder = new TextEncoder();
 
@@ -44,7 +36,6 @@ export default function Home() {
         // Create the user with the given email and password
         createUserWithEmailAndPassword(auth, inputs.email, inputs.password)
             .then((userCredential) => {
-                const user = userCredential.user;
                 // Get the salt that will be used to generate the encryption key
                 const salt = window.crypto.getRandomValues(new Uint8Array(16));
                 // Get the JWT token to send to backend
@@ -54,9 +45,10 @@ export default function Home() {
                         fetch("http://localhost:5000/create", {
                             'method': 'POST',
                             headers: {
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'Authorization': idToken
                             },
-                            body: JSON.stringify({ "id_token": idToken, "key_salt": salt })
+                            body: JSON.stringify({ "key_salt": salt })
                         })
                         .then(response => response.json)
                         .then(result => {
@@ -84,7 +76,7 @@ export default function Home() {
                                     )
                                     .then((key) => {
                                         // Set the key in the context for later encryption/decryption    
-                                        setKey(key);
+                                        setEncryptionKey(key);
                                         // Move to the user's page
                                         router.push(`/manager/${idToken}`);
                                     })

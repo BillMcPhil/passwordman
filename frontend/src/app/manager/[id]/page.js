@@ -6,7 +6,7 @@ import { setPersistence, getAuth, browserSessionPersistence } from "firebase/aut
 import { v4 as uuidv4 } from 'uuid';
 import context from '../../KeyContext/context.js';
 
-const firebaseConfig = //firebase config goes here
+const firebaseConfig = //Firebase config goes here
 
 function PasswordDisplay({ id, website, username, password, onDelete, onUpdate }) {
   const [isVisible, setVisible] = useState(false);
@@ -33,72 +33,70 @@ function PasswordDisplay({ id, website, username, password, onDelete, onUpdate }
 
     const enc = new TextEncoder().encode(editInputs.password);
     const nonce = window.crypto.getRandomValues(new Uint8Array(12));
-    alert(editInputs.password != password);
-    if (editInputs.password != password) {
-      window.crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, encryptionKey, enc).then((cipher) => {
-        const ciphertext = new Uint8Array(cipher);
-        auth.currentUser.getIdToken(true).then((idToken) => {
-          fetch("http://localhost:5000/edit", {
-            'method': 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `${idToken}`
-            },
-            body: JSON.stringify({
-              "id": id,
-              "website": editInputs.website,
-              "username": editInputs.username,
-              "nonce": nonce,
-              "cipher": ciphertext
-            })
+    window.crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, encryptionKey, enc).then((cipher) => {
+      const ciphertext = new Uint8Array(cipher);
+      auth.currentUser.getIdToken(true).then((idToken) => {
+        fetch("http://localhost:5000/edit", {
+          'method': 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `${idToken}`
+          },
+          body: JSON.stringify({
+            "id": id,
+            "website": editInputs.website,
+            "username": editInputs.username,
+            "nonce": nonce,
+            "cipher": ciphertext
           })
-            .then(response => response.json)
-            .then(result => console.log(result));
-        }).catch((error) => alert(error))
+        })
+          .then(response => response.json)
+          .then(result => console.log(result));
       }).catch((error) => alert(error))
-    }
+    }).catch((error) => alert(error))
 
     onUpdate({ "id": id, "website": editInputs.website, "username": editInputs.username, "password": editInputs.password });
   }
 
   return (
     <>
-      {!isEditing &&
-        <div className="display">
-          <p className="website"><b>{website}</b></p>
-          <p className="username"><b>{username}</b></p>
+    {!isEditing &&
+      <>      
+      <div className="grid grid-cols-4 items-center gap-17 py-2 border-b border-gray-700 justify-self-center">
+        <p className="w-30 text-center">{website}</p>
+        <p className="w-30 text-center"><b>{username}</b></p>
+        <p className="w-30 text-center"><b>{isVisible ? password : "***"}</b></p>
+        <div className="">
+          <button className="m-1 w-13 bg-black outline-2 outline-white-20 rounded-sm hover:bg-sky-700" 
+            onClick={() => setVisible(!isVisible)}>{isVisible ? "Hide" : "Reveal"}</button>
+          <button className="m-1 w-10 bg-black outline-2 outline-white-20 rounded-sm hover:bg-sky-700" 
+            onClick={copy}>Copy</button>
+          <button className="m-1 w-8 bg-black outline-2 outline-white-20 rounded-sm hover:bg-sky-700" onClick={() => {
+            setEditing(true);
+            setEditInputs({
+              "website": website,
+              "username": username,
+              "password": password
+            })
+          }}>Edit</button>
+          <button className="m-1 bg-black outline-2 outline-white-20 rounded-sm hover:bg-sky-700" onClick={onDelete}>Delete</button>
         </div>
-      }
-      {!isEditing &&
-        <div className="password-display">
-          <p className="password"><b>{isVisible ? password : "***"}</b></p>
-          <div className="password-buttons">
-            <button className="revealbutton" onClick={() => setVisible(!isVisible)}>{isVisible ? "hide" : "reveal"}</button>
-            <button className="copybutton" onClick={copy}>Copy</button>
-            <button className="editbutton" onClick={() => {
-              setEditing(true);
-              setEditInputs({
-                "website": website,
-                "username": username,
-                "password": password
-              })
-            }}>Edit</button>
-            <button className="deletebutton" onClick={onDelete}>Delete</button>
-          </div>
+      </div>  
+      </>  
+    }
+    {isEditing &&
+      <form className="grid grid-cols-4 items-center gap-30 py-2 border-b border-gray-700 justify-self-center" onSubmit={handleEdit}>
+        <input className="w-40 bg-black outline-2 outline-white-20 rounded-sm" 
+          type="text" placeholder="Website" name="website" value={ editInputs.website } onChange={handleEditChange} />
+        <input className="w-40 bg-black outline-2 outline-white-20 rounded-sm" 
+          type="text" placeholder="Username" name="username" value={editInputs.username} onChange={handleEditChange} />
+        <input className="w-40 bg-black outline-2 outline-white-20 rounded-sm" 
+          type="text" placeholder="Password" name="password" value={editInputs.password} onChange={handleEditChange} />
+        <div>
+          <button type="submit" className="m-1 w-10 bg-black outline-2 outline-white-20 rounded-sm hover:bg-sky-700">Save</button>
+          <button  className="m-1 w-15 bg-black outline-2 outline-white-20 rounded-sm hover:bg-sky-700" onClick={() => setEditing(false)}>Cancel</button>
         </div>
-      }
-      {isEditing &&
-        <div className="edit-display">
-          <form onSubmit={handleEdit}>
-            <input className="edit-box" type="text" placeholder="Website" name="website" value={ editInputs.website } onChange={handleEditChange} />
-            <input className="edit-box" type="text" placeholder="Username" name="username" value={editInputs.username} onChange={handleEditChange} />
-            <input className="edit-box" type="text" placeholder="Password" name="password" value={editInputs.password} onChange={handleEditChange} />
-            <div className="edit-form-buttons">
-              <button type="submit" className="password-save">Save</button>
-              <button onClick={() => setEditing(false)}>Cancel</button>
-            </div>
-          </form>
-        </div>
+      </form>
 
       }
     </>
@@ -226,43 +224,45 @@ export default function Home() {
 
   return (
     <>
-    <div>
-      <h1>Password Manager (Skeleton)</h1>
+    <div className="my-15 justify-self-center">
+        <h1 className="inline text-center text-5xl font-bold font-mono mt-5 mb-8">PasswordMan Vault</h1>
     </div>
-    <div className="topBar">
-      <h2 className="label">Website</h2>
-      <h2 className="label">Username</h2>
-      <h2 className="label">Password</h2>
-      <button className="add" onClick={() => setModalVisible(true)}>+</button>
+    <div className="">
+      <button className="absolute top-18 right-70 text-xl bg-white text-black px-3 py-1 rounded hover:bg-gray-200" 
+        onClick={() => setModalVisible(true)}>+</button>
     </div>
-
+    <div className="-translate-x-10 grid grid-cols-4 items-left gap-x-40 justify-self-center">
+      <h2 className="text-2xl font-bold font-mono">Website</h2>
+      <h2 className="text-2xl font-bold font-mono">Username</h2>
+      <h2 className="text-2xl font-bold font-mono">Password</h2>
+    </div>
+    
+    <div className="justify-self-center">
+      {entries.map(entry =>
+        <PasswordDisplay
+          id={entry.id}
+          website={entry.website}
+          username={entry.username}
+          password={entry.password}
+          onDelete={() => handleDelete(entry.id)}
+          onUpdate={(updatedEntry) => {
+            setEntries(prevEntries => prevEntries.map(e => e.id === updatedEntry.id ? updatedEntry : e))
+          }} />
+      )}
+    </div>
     {entryModalVisible &&
-    <div className="add-modal">
-      <h2>Add Password</h2>
-      <form onSubmit={handleEntry}>
-        <input className="new-entry-box" type="text" placeholder="Website" name="website" onChange={handleChange}/>
-        <input className="new-entry-box" type="text" placeholder="Username" name="username" onChange={handleChange}/>
-        <input className="new-entry-box" type="text" placeholder="Password" name="password" onChange={handleChange}/>
-        <div className="entry-form-buttons">
-          <button type="submit" className="password-save">Save</button>
-          <button onClick={() => setModalVisible(false)}>Cancel</button>
-        </div>
-      </form>
-    </div>
-    }
-      <div className="displays">
-        {entries.map(entry =>
-          <PasswordDisplay
-            id={entry.id}
-            website={entry.website}
-            username={entry.username}
-            password={entry.password}
-            onDelete={() => handleDelete(entry.id)}
-            onUpdate={(updatedEntry) => {
-              setEntries(prevEntries => prevEntries.map(e => e.id === updatedEntry.id ? updatedEntry : e))
-            }} />
-        )}
+      <div>
+        <form className="grid grid-cols-4 items-center gap-17 py-2 border-b border-gray-700 justify-self-center" onSubmit={handleEntry}>
+          <input className="w-40 bg-black outline-2 outline-white-20 rounded-sm" type="text" placeholder="Website" name="website" onChange={handleChange} />
+          <input className="w-40 bg-black outline-2 outline-white-20 rounded-sm" type="text" placeholder="Username" name="username" onChange={handleChange} />
+          <input className="w-40 bg-black outline-2 outline-white-20 rounded-sm" type="text" placeholder="Password" name="password" onChange={handleChange} />
+          <div className="entry-form-buttons">
+            <button type="submit" className="m-1 w-10 bg-black outline-2 outline-white-20 rounded-sm hover:bg-sky-700">Save</button>
+            <button className="m-1 w-15 bg-black outline-2 outline-white-20 rounded-sm hover:bg-sky-700" onClick={() => setModalVisible(false)}>Cancel</button>
+          </div>
+        </form>
       </div>
+    }  
   </>
   );
 }

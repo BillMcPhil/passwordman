@@ -8,8 +8,8 @@ import keys
 # Set up mongo db
 uri = keys.mongo_uri
 client = MongoClient(uri)
-database = client.get_database(# Database goes here)
-cluster = database.get_collection(# Collection goes here)
+database = client.get_database("passwordman")
+cluster = database.get_collection("posts")
 
 # Set up flask
 app = Flask(__name__)

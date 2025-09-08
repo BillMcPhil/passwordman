@@ -1,3 +1,4 @@
+@import "tailwindcss";
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -22,13 +23,15 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  height:fit-content;
+  height:3000px;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+@layer base {
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
 }
 
 a {
@@ -40,118 +43,4 @@ a {
   html {
     color-scheme: dark;
   }
-}
-
-.topBar {
-  padding-top: 20px;
-}
-
-.display {
-  position: relative;
-  padding-bottom: 20px;
-  padding-top: 15px;
-  width:fit-content;
-  height:fit-content;
-}
-
-.displays {
-  position: relative;
-  margin-top: 10px;
-  display:inline;
-  height:fit-content;
-  width:fit-content;
-}
-
-.label {
-  float: left;
-  padding-right: 150px;
-}
-
-.website {
-  position:absolute;
-}
-
-.username {
-  position: absolute;
-  left: 250px;
-}
-
-.password-display {
-  display:inline;
-  position:relative;
-  left:550px;
-  top:-10px;
-  width:fit-content;
-  height:fit-content;
-  padding-top: 50px;
-}
-
-.password-buttons {
-  display:block;
-  margin-top:18px;
-  padding-bottom:15px;
-  left:-450px;
-}
-
-.password {
-  position:absolute;
-  left:-50px;
-  top: -10px;
-}
-
-.revealbutton {
-  top: 15px;
-  display: inline;
-  position:absolute;
-  left:-45px;
-}
-
-.copybutton {
-  top: 15px;
-  display:inline;
-  position:absolute;
-}
-
-.deletebutton {
-  top: 15px;
-  display:inline;
-  position: absolute;
-  left: 70px;
-}
-
-.editbutton {
-  top: 15px;
-  display: inline;
-  position: absolute;
-  left: 40px;
-}
-
-.add {
-  font-size: 24px;
-  padding: 0px 10px;
-}
-
-.add-modal {
-  width: 100%;
-  padding-top: 20px;
-  padding-bottom: 20px;
-  margin: auto;
-}
-
-.entry-form-buttons {
-  margin-top: 8px;
-}
-
-.password-save {
-  margin-right: 5px;
-}
-
-.new-entry-box {
-  display:block;
-  margin-top: 8px;
-}
-
-.edit-box {
-  display: inline;
-  margin-right: 90px;
 }

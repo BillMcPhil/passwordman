@@ -1,11 +1,12 @@
 'use client'
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useState, useEffect, useContext } from 'react';
 import { initializeApp } from "firebase/app";
 import { setPersistence, getAuth, browserSessionPersistence, signInWithEmailAndPassword } from "firebase/auth";
 import context from '../KeyContext/context.js';
 
-const firebaseConfig = //firebase config goes here
+const firebaseConfig = // Firebase config goes here
 
 export default function Home() {
 
@@ -29,7 +30,6 @@ export default function Home() {
     const handleLogin = (e) => {
         e.preventDefault();
         setPersistence(auth, browserSessionPersistence).then(() => {    
-            alert(inputs.email)
             signInWithEmailAndPassword(auth, inputs.email, inputs.password)
                 .then((userCredential) => {
                     auth.currentUser.getIdToken(true)
@@ -41,6 +41,7 @@ export default function Home() {
                                 .then(res => res.json())
                                 .then(data => {
                                     const salt_object = data["salt"];
+                                    alert(data["salt"]);
                                     if (salt_object) {
                                         // Reconstruct the salt buffer
                                         const bytes = Object.values(salt_object);
@@ -71,7 +72,7 @@ export default function Home() {
                                                     // Set the key in the context and route to vault
                                                     .then((key) => {
                                                         setEncryptionKey(key);
-                                                        router.push(`/manager/${idToken}`);
+                                                        router.push(`/manager/${auth.currentUser.uid}`);
                                                     })
                                             });
                                     }
@@ -86,19 +87,28 @@ export default function Home() {
             .catch((error) => {
                 const errorCode = error.code;
                 const errorMessage = error.message;
-                alert(errorMessage);
+                alert("Incorrect email/password. Please try again");
             });
         });
     }
 
     return (
         <>
-            <span>Login</span>
-            <form onSubmit={handleLogin}>
-                <input type="text" placeholder="username" name="email" onChange={handleChange} />
-                <input type="text" placeholder="password" name="password" onChange={handleChange} />
-                <button type="submit">Log In</button>
-            </form>
+            <h1 className="justify-self-center text-5xl font-bold font-mono mt-5">Welcome to PasswordMan</h1>
+            <div className="grid rounded-md m-5 py-3 self-stretch justify-self-center w-sm h-xl bg-black shadow-lg outline outline-black/5 dark:bg-slate-800 dark:shadow-none dark:-outline-offset-1 dark:outline-white/10">
+                <h1 className="justify-self-center text-3xl font-bold font-mono">Login</h1>
+                <form onSubmit={handleLogin} className="justify-self-center grid grid-rows-3">
+                    <input className="w-xs mt-2 bg-black outline-2 outline-white-20 rounded-sm row-span-1"
+                        type="text" placeholder="Email" name="email" onChange={handleChange} />
+                    <input className="mt-2 bg-black outline-2 outline-white-20 rounded-sm"
+                        type="password" placeholder="Password" name="password" onChange={handleChange} />
+                    <button type="submit" className="mt-2 bg-black outline-2 outline-white-20 rounded-sm hover:bg-sky-700">Log In</button>
+                </form>
+                <h2 className="justify-self-center mt-4">New Here?</h2>
+                <Link className="text-center justify-self-center" href="/create">
+                    <p className="hover:text-sky-700">Sign up</p>
+                </Link>
+            </div>
         </>
     )
 }

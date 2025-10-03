@@ -1,1 +1,1 @@
-A simple password manager using a react frontend and python backend. Currently a WIP.
+A simple password manager that uses a React frontend and Flask backend. Uses Firebase to authenticate and encryption keys, storing passwords in a MongoDB database with AES-GCM encryption.
